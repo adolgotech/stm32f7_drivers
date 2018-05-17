@@ -11,15 +11,26 @@ enum class Pin : uint8_t{
    _9 = 9, _10 = 10, _11 = 11, _12 = 12, _13 = 13, _14 = 14, _15 = 15
 };
 
+enum class GpioMode : uint8_t {
+  INPUT = 0,
+  GENERAL = 1,
+  ALTERNATE = 2,
+  ANALOG = 3
+};
+
 class MockGpio : public GpioInterface {
   public:
     MockGpio();
     ~MockGpio();
 
     uint32_t getPortMode(Port gPort);
-    uint8_t getPinMode(Port gPort, Pin gPin);
+    GpioMode getPinMode(Port gPort, Pin gPin);
+    uint16_t getPortOutputType(Port gPort);
     void setPortMode(Port gPort, uint32_t value);
-    void setPinMode(Port gPort, Pin gPin, uint8_t value);
+    void setPinMode(Port gPort, Pin gPin, GpioMode gMode);
+    void setPortOutputType(Port gPort, uint16_t value);
+
   private:
     uint32_t portMode_[11];
+    uint32_t portOType_[11];
 };
