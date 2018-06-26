@@ -1,69 +1,137 @@
 #include <initializer_list>
 #include "mock_gpio.hpp"
-#include "stm32f7xx.h"
-
-MockGpio::MockGpio(){
-
-  for(auto port : {Port::A, Port::B, Port::C, Port::D, Port::E, Port::F,
-                   Port::G, Port::H, Port::I, Port::J, Port::K}){
-    setPortMode(port, 0x00000000);
-    setPortOutputType(port, 0x0000);
-  }
-  setPortMode(Port::A, 0xA8000000);
-  setPortMode(Port::B, 0x00000280);
-}
+// #include "general/helpers.hpp"
+using namespace GPIO;
+MockGpio::MockGpio(GPIO_TypeDef *gpio, RCC_TypeDef *rcc) : Gpio(gpio, rcc), gpio_(gpio){}
 
 MockGpio::~MockGpio(){}
 
-uint32_t MockGpio::getPortMode(Port gPort){
-  return portMode_[static_cast<uint8_t>(gPort)];
+uint32_t MockGpio::getMode(){
+  return Gpio::getMode();
 }
 
-void MockGpio::setPortMode(Port gPort, uint32_t value){
-  portMode_[static_cast<uint8_t>(gPort)] = value;
-}
-
-GpioMode MockGpio::getPinMode(Port gPort, Pin gPin){
+Mode MockGpio::getMode(Pin gPin){
   constexpr uint8_t pinMask = 0x3;
-  uint8_t portVal = static_cast<uint8_t>(gPort);
   uint8_t pinVal = static_cast<uint8_t>(gPin);
-  uint32_t portMode = getPortMode(gPort);
+  uint32_t portMode = getMode();
   // number of shifts is twice the pinVal
   uint8_t tempVal = (portMode >> (pinVal << 1)) & pinMask;
-  GpioMode retVal;
-  switch(tempVal){
-    case 0:
-      retVal = GpioMode::INPUT;
-      break;
+  return static_cast<Mode>(tempVal);
+}
 
-    case 1:
-      retVal = GpioMode::GENERAL;
-      break;
+void MockGpio::setMode(uint32_t value){
+  Gpio::setMode(value);
+}
 
-    case 2:
-      retVal = GpioMode::ALTERNATE;
-      break;
+uint16_t MockGpio::getOutputType(){
+  return Gpio::getOutputType();
+}
 
-    case 3:
-      retVal = GpioMode::ANALOG;
-      break;
+OutputType MockGpio::getOutputType(Pin gPin){
+  constexpr uint8_t pinMask = 1;
+  uint8_t pinVal = static_cast<uint8_t>(gPin);
+  uint16_t portOutputType = getOutputType();
+  uint8_t tempVal = (portOutputType >> pinVal) & pinMask;
+  return static_cast<OutputType>(tempVal);
+}
+
+void MockGpio::setOutputType(uint16_t value){
+  Gpio::setOutputType(value);
+}
+
+uint32_t MockGpio::getOutputSpeed(){
+  return Gpio::getOutputSpeed();
+}
+
+void MockGpio::setOutputSpeed(uint32_t value){
+  Gpio::setOutputSpeed(value);
+}
+
+OutputSpeed MockGpio::getOutputSpeed(Pin gPin){
+  constexpr uint8_t pinMask = 0x3;
+  uint8_t pinVal = static_cast<uint8_t>(gPin);
+  uint32_t portSpeed = getOutputSpeed();
+  // number of shifts is twice the pinVal
+  uint8_t tempVal = (portSpeed >> (pinVal << 1)) & pinMask;
+  return static_cast<OutputSpeed>(tempVal);
+}
+
+uint32_t MockGpio::getPull() {
+  return Gpio::getPull();
+}
+
+Pull MockGpio::getPull(Pin gPin){
+  constexpr uint8_t pinMask = 0x3;
+  uint8_t pinVal = static_cast<uint8_t>(gPin);
+  uint32_t pull = getPull();
+  // number of shifts is twice the pinVal
+  uint8_t tempVal = (pull >> (pinVal << 1)) & pinMask;
+  return static_cast<Pull>(tempVal);
+}
+
+void MockGpio::setPull(uint32_t value){
+  Gpio::setPull(value);
+}
+
+uint16_t MockGpio::read(){
+  return Gpio::read();
+}
+
+void MockGpio::write(uint16_t value){
+  gpio_->IDR = value;
+  Gpio::write(value);
+}
+
+void MockGpio::write(Pin gPin, Bit value){
+  uint8_t pinVal = static_cast<uint8_t>(gPin);
+  uint32_t data = 1 << pinVal;
+  if(value == Bit::CLR){
+    data <<= 16;
+  }
+  gpio_->BSRR = data;
+  bitSetClear(data);
+}
+
+void MockGpio::bitSetClear(uint32_t value){
+  uint16_t set = static_cast<uint16_t>(value & 0xffff);
+  uint16_t clr = static_cast<uint16_t>((value >> 16) & 0xffff);
+  uint16_t data = read();
+  if(set != 0x0000){
+    data |= set;
+    write(data);
+  } else if(clr != 0x0000){
+    data &= ~clr;
+    write(data);
+  }
+}
+
+uint32_t MockGpio::getAlternateLow(){
+  return Gpio::getAlternateLow();
+}
+
+uint32_t MockGpio::getAlternateHigh(){
+  return Gpio::getAlternateHigh();
+}
+
+void MockGpio::setAlternateLow(uint32_t value){
+  Gpio::setAlternateLow(value);
+}
+
+void MockGpio::setAlternateHigh(uint32_t value){
+  Gpio::setAlternateHigh(value);
+}
+
+Alt MockGpio::getAlternate(Pin gPin){
+  constexpr uint8_t pinMask = 0xf;
+  uint8_t pinVal = static_cast<uint8_t>(gPin);
+  uint32_t alternate = 0;
+  Alt retVal = Alt::AF0;
+  if(pinVal < 8){
+    alternate = getAlternateLow();
+    retVal = static_cast<Alt>((alternate >> (4 * pinVal)) & pinMask);
+  } else {
+    alternate = getAlternateHigh();
+    retVal = static_cast<Alt>((alternate >> (4 * (pinVal - 8))) & pinMask);
   }
   return retVal;
-}
-
-void MockGpio::setPinMode(Port gPort, Pin gPin, GpioMode gMode){
-  // Validate value
-  uint32_t tempValue = getPortMode(gPort);
-  uint8_t pinValue = static_cast<uint8_t>(gPin);
-  tempValue &= ~(3 << (pinValue << 1));
-  tempValue |= (static_cast<uint8_t>(gMode) << (pinValue << 1));
-  setPortMode(gPort, tempValue);
-}
-
-uint16_t MockGpio::getPortOutputType(Port gPort){
-  return portOType_[static_cast<uint8_t>(gPort)];
-}
-
-void MockGpio::setPortOutputType(Port gPort, uint16_t value){
-  portOType_[static_cast<uint8_t>(gPort)] = value;
 }

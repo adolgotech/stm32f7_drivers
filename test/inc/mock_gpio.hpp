@@ -1,36 +1,51 @@
 #pragma once
-#include "gpio_interface.hpp"
 #include <cstdint>
+#include "gpio.hpp"
 
-enum class Port : uint8_t{
-   A = 0, B = 1, C = 2, D = 3, E = 4, F = 5, G = 6, H = 7, I = 8, J = 9, K = 10
-};
-
-enum class Pin : uint8_t{
-   _0 = 0, _1 = 1, _2 = 2, _3 = 3, _4 = 4, _5 = 5, _6 = 6, _7 = 7, _8 = 8,
-   _9 = 9, _10 = 10, _11 = 11, _12 = 12, _13 = 13, _14 = 14, _15 = 15
-};
-
-enum class GpioMode : uint8_t {
-  INPUT = 0,
-  GENERAL = 1,
-  ALTERNATE = 2,
-  ANALOG = 3
-};
-
-class MockGpio : public GpioInterface {
+namespace GPIO {
+class MockGpio : public Gpio {
   public:
+    MockGpio(GPIO_TypeDef *gpio, RCC_TypeDef *rcc);
     MockGpio();
     ~MockGpio();
 
-    uint32_t getPortMode(Port gPort);
-    GpioMode getPinMode(Port gPort, Pin gPin);
-    uint16_t getPortOutputType(Port gPort);
-    void setPortMode(Port gPort, uint32_t value);
-    void setPinMode(Port gPort, Pin gPin, GpioMode gMode);
-    void setPortOutputType(Port gPort, uint16_t value);
+    using Gpio::setMode;
+    using Gpio::setOutputType;
+    using Gpio::setOutputSpeed;
+    using Gpio::setPull;
+    using Gpio::read;
+    using Gpio::setAlternate;
+    using Gpio::toggle;
+
+    void write(Pin gPin, Bit value) override;
+
+    // These are private in the implementation
+    // Port access functions
+    uint32_t getMode() override;
+    uint16_t getOutputType() override;
+    uint32_t getOutputSpeed() override;
+    uint32_t getPull() override;
+    uint32_t getAlternateLow() override;
+    uint32_t getAlternateHigh() override;
+    uint16_t read() override;
+
+    void write(uint16_t) override;
+    void setMode(uint32_t value) override;
+    void setOutputType(uint16_t value) override;
+    void setOutputSpeed(uint32_t value) override;
+    void setPull(uint32_t value) override;
+    void setAlternateLow(uint32_t value) override;
+    void setAlternateHigh(uint32_t value) override;
+
+    // Pin access functions
+    Mode getMode(Pin gPin);
+    OutputType getOutputType(Pin gPin);
+    OutputSpeed getOutputSpeed(Pin gPin);
+    Pull getPull(Pin gPin);
+    Alt getAlternate(Pin gPin);
 
   private:
-    uint32_t portMode_[11];
-    uint32_t portOType_[11];
+    void bitSetClear(uint32_t value);
+    GPIO_TypeDef *gpio_;
 };
+}
